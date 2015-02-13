@@ -7,6 +7,35 @@ def makeFloat(v):
     return float(v.replace(',', '.'))
 
 
+class Oil(object):
+    oilURL = None
+    oilQuery = None
+    timezone = "utc"
+    minuteSpan = -1
+
+    @classmethod
+    def extractOil(cls, d):
+        try:
+            return d(cls.oilQuery)[0].text
+        except Exception, e:
+            raise Exception("oil price cannot be extracted. " + e.message)
+
+    @classmethod
+    def getOil(cls):
+        """
+        returns the oil price:
+        {"data": "utc date", "price": "4.1"}
+        """
+
+        d = pq(url=cls.oilURL)
+        price = cls.extractOil(d)
+
+        return {
+            "date": arrow.utcnow(),
+            "price": makeFloat(price)
+        }
+
+
 class CurrencyParity(object):
     parityURL = None
     parityQuery = None
@@ -92,7 +121,7 @@ class Stock(object):
 
 
 class Google(CurrencyParity):
-    parityURL = "https://www.google.com/finance?q=usdtry"
+    parityURL = "https://www.google.com/finance?q={}"
     parityQuery = "#currency_value > div.sfe-break-bottom-4 > span.pr > span"
 
     @classmethod
@@ -119,12 +148,19 @@ class Bigpara(Stock):
     volumeQuery = '.newProcessBar li span b'
 
 
-class MarketWatch(Stock, CurrencyParity):
+class MarketWatch(Stock, CurrencyParity, Oil):
     timezone = "utc"
 
+    # commodities
+    oilURL = "http://www.marketwatch.com/investing/Future"\
+        "/BRENT%20CRUDE?countrycode=UK"
+    oilQuery = ".lastprice .data.bgLast"
+
+    # parities
     parityURL = "http://www.marketwatch.com/investing/currency/{}"
     parityQuery = ".lastprice .data.bgLast"
 
+    # stocks
     stockURL = "http://www.marketwatch.com/investing/stock/{}"
     priceQuery = '.lastprice .bgLast'
     volumeQuery = '.bgVolume'
@@ -139,10 +175,24 @@ class MarketWatch(Stock, CurrencyParity):
         volume = d(cls.volumeQuery)[0].text[:-1].replace(".", "")
         return str(float(volume) * float(price) * 10000)
 
+
+# wall street journal
+class TWSJ(Oil):
+    timezone = "utc"
+
+    # commodities
+    oilURL = "http://quotes.wsj.com/futures/UK/LCOJ5"
+    oilQuery = "#mdad_quote_span"
+
+
 if __name__ == '__main__':
     print("Testing crawlers by fetching the stock ISCTR:")
     # print Uzmanpara.getStock("THYAO")
     # print Bigpara.getStock("THYAO")
-    print MarketWatch.getStock("THYAO")
-    print MarketWatch.getParity("usd-try")
-    print Google.getParity("usd-try")
+    # print MarketWatch.getStock("THYAO")
+    # print MarketWatch.getParity("usd-try")
+    # print Google.getParity("usd-try")
+    print MarketWatch.getParity("eurusd")
+    print Google.getParity("eurusd")
+    print MarketWatch.getOil()
+    print TWSJ.getOil()
