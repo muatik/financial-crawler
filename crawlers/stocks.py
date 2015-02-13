@@ -3,6 +3,47 @@ from pyquery import PyQuery as pq
 import arrow
 
 
+def makeFloat(v):
+    return float(v.replace(',', '.'))
+
+
+class CurrencyParity(object):
+    parityURL = None
+    parityQuery = None
+    timezone = "Europe/Istanbul"
+    minuteSpan = -1
+
+    @classmethod
+    def formatParityCode(cls, parityCode):
+        return parityCode
+
+    @classmethod
+    def extractParity(cls, d):
+        try:
+            return d(cls.parityQuery)[0].text
+        except Exception, e:
+            raise Exception("parity cannot be extracted. " + e.message)
+
+    @classmethod
+    def getParity(cls, parityCode):
+        """
+        returns the value of the parity given as "usd-try":
+        {"data": "utc date", "price": "4.1"}
+        """
+
+        parityCode = cls.formatParityCode(parityCode)
+        d = pq(url=cls.parityURL.format(parityCode))
+        parity = cls.extractParity(d)
+
+        local = arrow.utcnow().to(cls.timezone)
+        priceDate = local.replace(minutes=cls.minuteSpan)
+
+        return {
+            "date": priceDate.to('utc'),
+            "parity": makeFloat(parity)
+        }
+
+
 class Stock(object):
     stockURL = None
     priceQuery = None
@@ -11,12 +52,22 @@ class Stock(object):
     minuteSpan = -20
 
     @classmethod
-    def extractPrice(cls, d):
-        return d(cls.priceQuery)[0].text
+    def formatStockCode(cls, stockCode):
+        return stockCode
+
+    @classmethod
+    def extractStockPrice(cls, d):
+        try:
+            return d(cls.priceQuery)[0].text
+        except Exception, e:
+            raise Exception("price cannot be extracted. " + e.message)
 
     @classmethod
     def extractVolume(cls, d):
-        return d(cls.volumeQuery)[0].text.replace(".", "")
+        try:
+            return d(cls.volumeQuery)[0].text.replace(".", "")
+        except Exception, e:
+            raise Exception("volume cannot be extracted. " + e.message)
 
     @classmethod
     def getStock(cls, stockCode):
@@ -25,15 +76,13 @@ class Stock(object):
         {"data": "utc date", "price": "4.1"}
         """
 
+        stockCode = cls.formatStockCode(stockCode)
         d = pq(url=cls.stockURL.format(stockCode))
-        price = cls.extractPrice(d)
+        price = cls.extractStockPrice(d)
         volume = cls.extractVolume(d)
 
         local = arrow.utcnow().to(cls.timezone)
         priceDate = local.replace(minutes=cls.minuteSpan)
-
-        def makeFloat(v):
-            return float(v.replace(',', '.'))
 
         return {
             "date": priceDate.to('utc'),
@@ -42,9 +91,19 @@ class Stock(object):
         }
 
 
+class Google(CurrencyParity):
+    parityURL = "https://www.google.com/finance?q=usdtry"
+    parityQuery = "#currency_value > div.sfe-break-bottom-4 > span.pr > span"
+
+    @classmethod
+    def extractParity(cls, parityCode):
+        parity = super(Google, cls).extractParity(parityCode)
+        return parity.split(" ")[0]
+
+
 class Uzmanpara(Stock):
     stockURL = "http://uzmanpara.milliyet.com.tr/borsa/hisse-senetleri/{0}/"
-    priceQuery = '.realTime .price-arrow-up'
+    priceQuery = 'div.realTime > span.price-arrow-down'
     volumeQuery = '.realTime table tr td'
     timezone = "Europe/Istanbul"
 
@@ -54,26 +113,36 @@ class Uzmanpara(Stock):
 
 
 class Bigpara(Stock):
+    timezone = "Europe/Istanbul"
     stockURL = "http://www.bigpara.com/borsa/hisse-detay-bilgileri/{0}/"
     priceQuery = '.piyasaBox .area1'
-    timezone = "Europe/Istanbul"
     volumeQuery = '.newProcessBar li span b'
 
 
-class MarketWatch(Stock):
+class MarketWatch(Stock, CurrencyParity):
+    timezone = "utc"
+
+    parityURL = "http://www.marketwatch.com/investing/currency/{}"
+    parityQuery = ".lastprice .data.bgLast"
+
     stockURL = "http://www.marketwatch.com/investing/stock/{}"
     priceQuery = '.lastprice .bgLast'
-    timezone = "utc"
     volumeQuery = '.bgVolume'
 
     @classmethod
+    def formatParityCode(cls, parityCode):
+        return "".join(parityCode.split("-"))
+
+    @classmethod
     def extractVolume(cls, d):
-        price = cls.extractPrice(d)
+        price = cls.extractStockPrice(d)
         volume = d(cls.volumeQuery)[0].text[:-1].replace(".", "")
         return str(float(volume) * float(price) * 10000)
 
 if __name__ == '__main__':
     print("Testing crawlers by fetching the stock ISCTR:")
-    print Uzmanpara.getStock("ISCTR")
+    # print Uzmanpara.getStock("THYAO")
     # print Bigpara.getStock("THYAO")
-    # print MarketWatch.getStock("THYAO")
+    print MarketWatch.getStock("THYAO")
+    print MarketWatch.getParity("usd-try")
+    print Google.getParity("usd-try")
