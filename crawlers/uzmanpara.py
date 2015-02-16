@@ -4,7 +4,7 @@ from base import Stock
 
 class Uzmanpara(Stock):
     stockURL = "http://uzmanpara.milliyet.com.tr/borsa/hisse-senetleri/{0}/"
-    priceQuery = 'div.realTime > span.price-arrow-down'
+    priceQuery = '.realTime > .price-arrow-down, .realTime > .price-arrow-up'
     volumeQuery = '.realTime table tr td'
     timezone = "Europe/Istanbul"
 
