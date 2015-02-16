@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-from crawlers import *
+from clients import *
 
 if __name__ == '__main__':
     print("Testing crawlers by fetching the stock ISCTR:")
