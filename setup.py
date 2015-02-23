@@ -8,7 +8,7 @@ requirements_file = "requirements.txt"
 requirements = [pkg.strip() for pkg in open(requirements_file).readlines()]
 
 setup(
-    name="parapul",
+    name="financialCrawler",
     version="0.1",
     packages=find_packages(),
     install_requires=requirements,
@@ -17,6 +17,6 @@ setup(
     long_description=open('README.md').read(),
     description='stock price crawler',
     license="MIT",
-    url="https://github.com/muatik/paramara",
+    url="https://github.com/muatik/financial-crawler",
     platforms=['any'],
 )

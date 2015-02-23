@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-from parapul import clients
+from financialCrawler import clients
 
 print("\nTesting crawlers by fetching the stock price of THYAO:")
 
